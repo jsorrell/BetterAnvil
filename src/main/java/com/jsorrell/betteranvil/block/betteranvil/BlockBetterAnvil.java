@@ -39,4 +39,16 @@ public class BlockBetterAnvil extends BlockTileEntityBase<TileEntityBetterAnvil>
 	public TileEntityBetterAnvil createTileEntity(World world, IBlockState state) {
 		return new TileEntityBetterAnvil();
 	}
+
+	@Override
+	@Deprecated
+	public boolean isOpaqueCube(IBlockState state) {
+		return false;
+	}
+
+	@Override
+	@Deprecated
+	public boolean isFullCube(IBlockState state) {
+		return false;
+	}
 }

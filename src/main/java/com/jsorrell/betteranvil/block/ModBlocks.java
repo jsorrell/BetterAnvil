@@ -22,6 +22,6 @@ public class ModBlocks {
 	}
 
 	public static void registerItemBlockModels() {
-		anvil.registerItemModel(anvil.createItemBlock());
+		anvil.registerItemBlockModel(Item.getItemFromBlock(anvil));
 	}
 }

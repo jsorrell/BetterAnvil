@@ -1,0 +1,12 @@
+{
+  "forge_marker": 1,
+  "variants": {
+    "normal": {
+      "model": "betteranvil:betteranvil"
+    },
+    "inventory": {
+      "model": "betteranvil:betteranvil",
+      "transform": "forge:default-block"
+    }
+  }
+}

@@ -20,7 +20,7 @@ public class BlockBase extends Block {
 		setRegistryName(name);
 	}
 
-	public void registerItemModel(Item itemBlock) {
+	public void registerItemBlockModel(Item itemBlock) {
 		BetterAnvil.proxy.registerItemRenderer(itemBlock, 0, name);
 	}
 
