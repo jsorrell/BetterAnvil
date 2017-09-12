@@ -11,6 +11,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 @Mod(modid = BetterAnvil.MODID, name = BetterAnvil.NAME, version=BetterAnvil.VERSION)
 public class BetterAnvil {
@@ -26,7 +27,7 @@ public class BetterAnvil {
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent e) {
-
+		NetworkRegistry.INSTANCE.registerGuiHandler(this, new ModGuiHandler());
 	}
 
 	@Mod.EventHandler
