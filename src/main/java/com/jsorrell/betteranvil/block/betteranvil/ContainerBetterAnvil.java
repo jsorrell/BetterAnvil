@@ -10,30 +10,28 @@ import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.SlotItemHandler;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
-
-import static java.lang.System.out;
 
 public class ContainerBetterAnvil extends Container {
 
 	private IItemHandler inventory;
-
-	private static final Logger LOGGER = LogManager.getLogger();
 	private final World world;
-	private final BlockPos selfPosition;
+	final BlockPos selfPosition;
 	/** The maximum cost of repairing/renaming in the anvil. */
-	public int xpCost;
+	int xpCost;
 	/** determined by damage of input item and stackSize of repair materials */
-	public int materialCost;
-	private String repairedItemName;
+	private int materialCost;
 	/** The player that has this container open. */
 	private final EntityPlayer player;
 	private final TileBetterAnvil anvil;
@@ -45,10 +43,13 @@ public class ContainerBetterAnvil extends Container {
 		this.selfPosition = blockPosIn;
 		this.world = worldIn;
 		this.player = player;
+		this.anvil.container = this; //TODO: should this be here?
+
 		this.addSlotToContainer(new SlotItemHandler(this.inventory, 0, 27, 47){
 			@Override
 			public void onSlotChanged() {
 				ContainerBetterAnvil.this.updateRepairOutput();
+				player.sendStatusMessage(new TextComponentString(String.valueOf(ContainerBetterAnvil.this.xpCost)), false);
 				anvil.markDirty();
 			}
 		});
@@ -56,6 +57,7 @@ public class ContainerBetterAnvil extends Container {
 			@Override
 			public void onSlotChanged() {
 				ContainerBetterAnvil.this.updateRepairOutput();
+				player.sendStatusMessage(new TextComponentString(String.valueOf(ContainerBetterAnvil.this.xpCost)), false);
 				anvil.markDirty();
 			}
 		});
@@ -78,8 +80,11 @@ public class ContainerBetterAnvil extends Container {
 				return (playerIn.capabilities.isCreativeMode || playerIn.experienceLevel >= ContainerBetterAnvil.this.xpCost) && ContainerBetterAnvil.this.xpCost > 0 && this.getHasStack();
 			}
 			@Override
+
+
 			public ItemStack onTake(EntityPlayer thePlayer, ItemStack stack)
 			{
+				ContainerBetterAnvil.this.updateRepairOutput();
 				if (!thePlayer.capabilities.isCreativeMode)
 				{
 					//Fixme: Vanilla experience calculation
@@ -89,6 +94,12 @@ public class ContainerBetterAnvil extends Container {
 				clearInventorySlot(0);
 				clearInventorySlot(1);
 				ContainerBetterAnvil.this.xpCost = 0;
+
+				if(!world.isRemote) {
+					worldIn.playEvent(1030, blockPosIn, 0);
+				}
+
+				anvil.markDirty();
 
 				return stack;
 			}
@@ -107,7 +118,6 @@ public class ContainerBetterAnvil extends Container {
 			this.addSlotToContainer(new Slot(playerInventory, k, 8 + k * 18, 142));
 		}
 	}
-
 
 	/**
 	 * called when the Anvil Input Slot changes, calculates the new result and puts it in the output slot
@@ -137,8 +147,22 @@ public class ContainerBetterAnvil extends Container {
 			// 2 Inputs: repairing/combining
 			if (!input1.isEmpty())
 			{
-				//FIXME
-				//if (!net.minecraftforge.common.ForgeHooks.onAnvilChange(this, input0, input1, outputSlot, repairedItemName, repairCost)) return;
+				IInventory onAnvilChangeOutput = new InventoryCraftResult();
+				//TODO: add tests for this
+				ContainerRepair onAnvilChangeContainer = new ContainerRepair(null, null, null);
+				//FIXME: this will prob cause errors + hacky AF
+//				ContainerRepair onAnvilChangeContainer = (ContainerRepair)(Object)new Object() {
+//					public int maximumCost;
+//					public int materialCost;
+//				};
+				if (!net.minecraftforge.common.ForgeHooks.onAnvilChange(onAnvilChangeContainer, input0, input1, onAnvilChangeOutput, this.anvil.getItemName(), repairCost)) {
+					if (!onAnvilChangeOutput.isEmpty()) {
+						this.xpCost = onAnvilChangeContainer.maximumCost;
+						this.materialCost = onAnvilChangeContainer.materialCost;
+						this.clearInventorySlot(2);
+						this.inventory.insertItem(2, onAnvilChangeOutput.getStackInSlot(0), false);
+					}
+				}
 				isEnchantedBook = input1.getItem() == Items.ENCHANTED_BOOK && !ItemEnchantedBook.getEnchantments(input1).hasNoTags();
 
 				/* Repair input0 with input1 materials */
@@ -280,7 +304,7 @@ public class ContainerBetterAnvil extends Container {
 			}
 
 			/* Rename */
-			if (StringUtils.isBlank(this.repairedItemName))
+			if (StringUtils.isBlank(this.anvil.getItemName()))
 			{
 				if (input0.hasDisplayName())
 				{
@@ -289,11 +313,11 @@ public class ContainerBetterAnvil extends Container {
 					output.clearCustomName();
 				}
 			}
-			else if (!this.repairedItemName.equals(input0.getDisplayName()))
+			else if (!this.anvil.getItemName().equals(input0.getDisplayName()))
 			{
 				k = 1;
 				i += k;
-				output.setStackDisplayName(this.repairedItemName);
+				output.setStackDisplayName(this.anvil.getItemName());
 			}
 
 			if (isEnchantedBook && !output.getItem().isBookEnchantable(output, input1)) output = ItemStack.EMPTY;
@@ -349,20 +373,20 @@ public class ContainerBetterAnvil extends Container {
 		return count > 0;
 	}
 
-//	public void addListener(IContainerListener listener)
-//	{
-//		super.addListener(listener);
-//		listener.sendWindowProperty(this, 0, this.xpCost);
-//	}
+	public void addListener(IContainerListener listener)
+	{
+		super.addListener(listener);
+		listener.sendWindowProperty(this, 0, this.xpCost);
+	}
 
-//	@SideOnly(Side.CLIENT)
-//	public void updateProgressBar(int id, int data)
-//	{
-//		if (id == 0)
-//		{
-//			this.xpCost = data;
-//		}
-//	}
+	@SideOnly(Side.CLIENT)
+	public void updateProgressBar(int id, int data)
+	{
+		if (id == 0)
+		{
+			this.xpCost = data;
+		}
+	}
 
 	/**
 	 * Called when the container is closed.
@@ -370,7 +394,7 @@ public class ContainerBetterAnvil extends Container {
 	public void onContainerClosed(EntityPlayer playerIn)
 	{
 		super.onContainerClosed(playerIn);
-		out.println("Closing Container");
+		this.anvil.container = null;
 		//TODO
 	}
 
@@ -438,27 +462,30 @@ public class ContainerBetterAnvil extends Container {
 	}
 
 	/**
-	 * used by the Anvil GUI to update the Item Name being typed by the player
+	 * used by the BetterAnvil GUI to update the Item Name being typed by the player
 	 */
-//	public void updateItemName(String newName)
-//	{
-//		this.repairedItemName = newName;
-//
-//		if (this.getSlot(2).getHasStack())
-//		{
-//			ItemStack itemstack = this.getSlot(2).getStack();
-//
-//			if (StringUtils.isBlank(newName))
-//			{
-//				itemstack.clearCustomName();
-//			}
-//			else
-//			{
-//				itemstack.setStackDisplayName(this.repairedItemName);
-//			}
-//		}
-//
-//		this.updateRepairOutput();
-//	}
+	public void updateItemName(String newName)
+	{
+		this.anvil.setItemName(newName);
 
+		if (this.getSlot(2).getHasStack())
+		{
+			ItemStack itemstack = this.getSlot(2).getStack();
+
+			if (StringUtils.isBlank(newName))
+			{
+				itemstack.clearCustomName();
+			}
+			else
+			{
+				itemstack.setStackDisplayName(newName);
+			}
+		}
+
+		this.updateRepairOutput();
+	}
+
+	@SubscribeEvent
+	public void onPlayerPickupXP(FMLNetworkEvent.ClientConnectedToServerEvent e) {
+	}
 }

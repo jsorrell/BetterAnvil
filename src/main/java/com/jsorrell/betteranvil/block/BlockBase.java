@@ -11,7 +11,7 @@ public class BlockBase extends Block {
 
 	protected String name;
 
-	public BlockBase(Material material, String name) {
+	BlockBase(Material material, String name) {
 		super(material);
 
 		this.name = name;

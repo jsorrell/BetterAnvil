@@ -1,1 +1,3 @@
 tile.betteranvil.name=Better Anvil
+container.repair.cost=Enchantment Cost: %1$s
+container.repair.expensive=Too Expensive!

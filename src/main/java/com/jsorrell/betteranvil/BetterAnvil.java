@@ -32,12 +32,11 @@ public class BetterAnvil {
 
 	@Mod.EventHandler
 	public void init(FMLInitializationEvent e) {
-
+		ModidPacketHandler.registerPacketHandlers();
 	}
 
 	@Mod.EventHandler
 	public void postInit(FMLPostInitializationEvent e) {
-
 	}
 
 	@Mod.EventBusSubscriber
