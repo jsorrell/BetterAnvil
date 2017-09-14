@@ -39,6 +39,7 @@ public class GuiBetterAnvilPacket implements IMessage {
 		buf.writeDouble(this.z);
 	}
 
+	/* Handles server receiving name from client when changed */
 	public static class Handler implements IMessageHandler<GuiBetterAnvilPacket, IMessage> {
 		@Override
 		public IMessage onMessage(GuiBetterAnvilPacket message, MessageContext ctx) {
@@ -52,7 +53,7 @@ public class GuiBetterAnvilPacket implements IMessage {
 			if (anvilTile.container != null) {
 				anvilTile.container.updateItemName(message.itemName);
 			} else {
-				anvilTile.setItemName(message.itemName);
+				anvilTile.setItemNameInput(message.itemName);
 			}
 			return null;
 		}

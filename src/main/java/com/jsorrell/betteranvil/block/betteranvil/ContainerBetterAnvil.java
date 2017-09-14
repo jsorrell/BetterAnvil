@@ -10,22 +10,17 @@ import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.network.FMLNetworkEvent;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.SlotItemHandler;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nonnull;
 import java.util.Map;
 
 public class ContainerBetterAnvil extends Container {
-
-	private IItemHandler inventory;
+	private IItemHandler inputSlots;
 	private final World world;
 	final BlockPos selfPosition;
 	/** The maximum cost of repairing/renaming in the anvil. */
@@ -34,34 +29,56 @@ public class ContainerBetterAnvil extends Container {
 	private int materialCost;
 	/** The player that has this container open. */
 	private final EntityPlayer player;
-	private final TileBetterAnvil anvil;
+	public final TileBetterAnvil anvil;
+	public GuiBetterAnvil gui = null; //null if on server side or gui not initialized
+	private final IInventory outputSlot;
 
 	public ContainerBetterAnvil(InventoryPlayer playerInventory, final World worldIn, final BlockPos blockPosIn, EntityPlayer player)
 	{
 		this.anvil = (TileBetterAnvil)worldIn.getTileEntity(blockPosIn);
-		this.inventory = anvil.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.NORTH);
+		this.inputSlots = anvil.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.NORTH);
+		this.outputSlot = new InventoryCraftResult();
 		this.selfPosition = blockPosIn;
 		this.world = worldIn;
 		this.player = player;
 		this.anvil.container = this; //TODO: should this be here?
+		this.addSlotToContainer(new SlotItemHandler(this.inputSlots, 0, 27, 47){
+			@Override
+			public void putStack(@Nonnull ItemStack stack) {
+				if (!stack.isItemEqual(ContainerBetterAnvil.this.inputSlots.getStackInSlot(0)) && !stack.getUnlocalizedName().equals("tile.air")) {
+					anvil.setItemNameInput(stack.getDisplayName());
+					if (gui != null) {
+						gui.updateNameInput();
+						gui.setNameInputEnabled(true);
+					}
+				}
+				super.putStack(stack);
 
-		this.addSlotToContainer(new SlotItemHandler(this.inventory, 0, 27, 47){
+				updateRepairOutput();
+				anvil.markDirty();
+			}
+
+			@Override
+			public ItemStack onTake(EntityPlayer thePlayer, ItemStack stack) {
+				super.onTake(thePlayer, stack);
+				anvil.setItemNameInput("");
+				if (gui != null) {
+					gui.updateNameInput();
+					gui.setNameInputEnabled(false);
+				}
+				updateRepairOutput();
+				anvil.markDirty();
+				return stack;
+			}
+		});
+		this.addSlotToContainer(new SlotItemHandler(this.inputSlots, 1, 76, 47) {
 			@Override
 			public void onSlotChanged() {
-				ContainerBetterAnvil.this.updateRepairOutput();
-				player.sendStatusMessage(new TextComponentString(String.valueOf(ContainerBetterAnvil.this.xpCost)), false);
+				updateRepairOutput();
 				anvil.markDirty();
 			}
 		});
-		this.addSlotToContainer(new SlotItemHandler(this.inventory, 1, 76, 47) {
-			@Override
-			public void onSlotChanged() {
-				ContainerBetterAnvil.this.updateRepairOutput();
-				player.sendStatusMessage(new TextComponentString(String.valueOf(ContainerBetterAnvil.this.xpCost)), false);
-				anvil.markDirty();
-			}
-		});
-		this.addSlotToContainer(new SlotItemHandler(this.inventory, 2, 134, 47)
+		this.addSlotToContainer(new Slot(this.outputSlot, 0, 134, 47)
 		{
 			/**
 			 * Prevent inputting into output
@@ -80,11 +97,8 @@ public class ContainerBetterAnvil extends Container {
 				return (playerIn.capabilities.isCreativeMode || playerIn.experienceLevel >= ContainerBetterAnvil.this.xpCost) && ContainerBetterAnvil.this.xpCost > 0 && this.getHasStack();
 			}
 			@Override
-
-
 			public ItemStack onTake(EntityPlayer thePlayer, ItemStack stack)
 			{
-				ContainerBetterAnvil.this.updateRepairOutput();
 				if (!thePlayer.capabilities.isCreativeMode)
 				{
 					//Fixme: Vanilla experience calculation
@@ -92,15 +106,20 @@ public class ContainerBetterAnvil extends Container {
 				}
 
 				clearInventorySlot(0);
-				clearInventorySlot(1);
+				ContainerBetterAnvil.this.inputSlots.extractItem(1, ContainerBetterAnvil.this.materialCost, false);
 				ContainerBetterAnvil.this.xpCost = 0;
 
 				if(!world.isRemote) {
 					worldIn.playEvent(1030, blockPosIn, 0);
 				}
 
+				anvil.setItemNameInput("");
 				anvil.markDirty();
 
+				if (gui != null) {
+					gui.updateNameInput();
+					gui.setNameInputEnabled(false);
+				}
 				return stack;
 			}
 		});
@@ -117,6 +136,8 @@ public class ContainerBetterAnvil extends Container {
 		{
 			this.addSlotToContainer(new Slot(playerInventory, k, 8 + k * 18, 142));
 		}
+
+		this.updateRepairOutput();
 	}
 
 	/**
@@ -124,7 +145,7 @@ public class ContainerBetterAnvil extends Container {
 	 */
 	public void updateRepairOutput()
 	{
-		ItemStack input0 = this.inventory.getStackInSlot(0);
+		ItemStack input0 = this.inputSlots.getStackInSlot(0);
 		this.xpCost = 1;
 		int i = 0;
 		int repairCost = 0;
@@ -138,7 +159,7 @@ public class ContainerBetterAnvil extends Container {
 		else
 		{
 			ItemStack output = input0.copy();
-			ItemStack input1 = this.inventory.getStackInSlot(1);
+			ItemStack input1 = this.inputSlots.getStackInSlot(1);
 			Map<Enchantment, Integer> enchantmentLevelsMap0 = EnchantmentHelper.getEnchantments(input0);
 			repairCost = repairCost + input0.getRepairCost() + (input1.isEmpty() ? 0 : input1.getRepairCost());
 			this.materialCost = 0;
@@ -155,12 +176,12 @@ public class ContainerBetterAnvil extends Container {
 //					public int maximumCost;
 //					public int materialCost;
 //				};
-				if (!net.minecraftforge.common.ForgeHooks.onAnvilChange(onAnvilChangeContainer, input0, input1, onAnvilChangeOutput, this.anvil.getItemName(), repairCost)) {
+				if (!net.minecraftforge.common.ForgeHooks.onAnvilChange(onAnvilChangeContainer, input0, input1, onAnvilChangeOutput, this.anvil.getItemNameInput(), repairCost)) {
 					if (!onAnvilChangeOutput.isEmpty()) {
 						this.xpCost = onAnvilChangeContainer.maximumCost;
 						this.materialCost = onAnvilChangeContainer.materialCost;
 						this.clearInventorySlot(2);
-						this.inventory.insertItem(2, onAnvilChangeOutput.getStackInSlot(0), false);
+						this.outputSlot.setInventorySlotContents(0, onAnvilChangeOutput.getStackInSlot(0));
 					}
 				}
 				isEnchantedBook = input1.getItem() == Items.ENCHANTED_BOOK && !ItemEnchantedBook.getEnchantments(input1).hasNoTags();
@@ -304,7 +325,7 @@ public class ContainerBetterAnvil extends Container {
 			}
 
 			/* Rename */
-			if (StringUtils.isBlank(this.anvil.getItemName()))
+			if (StringUtils.isBlank(this.anvil.getItemNameInput()))
 			{
 				if (input0.hasDisplayName())
 				{
@@ -313,11 +334,11 @@ public class ContainerBetterAnvil extends Container {
 					output.clearCustomName();
 				}
 			}
-			else if (!this.anvil.getItemName().equals(input0.getDisplayName()))
+			else if (!this.anvil.getItemNameInput().equals(input0.getDisplayName()))
 			{
 				k = 1;
 				i += k;
-				output.setStackDisplayName(this.anvil.getItemName());
+				output.setStackDisplayName(this.anvil.getItemNameInput());
 			}
 
 			if (isEnchantedBook && !output.getItem().isBookEnchantable(output, input1)) output = ItemStack.EMPTY;
@@ -359,16 +380,24 @@ public class ContainerBetterAnvil extends Container {
 			}
 
 			clearInventorySlot(2);
-			this.inventory.insertItem(2, output, false);
-			this.detectAndSendChanges();
+			this.outputSlot.setInventorySlotContents(0, output);
 		}
 	}
 
 	private boolean clearInventorySlot(int slot) {
-		ItemStack stack = this.inventory.getStackInSlot(slot);
-		int count = stack.getCount();
-		if (count > 0) {
-			this.inventory.extractItem(slot, count, false);
+		int count;
+		if (slot < 2) {
+			ItemStack stack = this.inputSlots.getStackInSlot(slot);
+			count = stack.getCount();
+			if (count > 0) {
+				this.inputSlots.extractItem(slot, count, false);
+			}
+		} else {
+			ItemStack stack = this.outputSlot.getStackInSlot(0);
+			count = stack.getCount();
+			if (count > 0) {
+				this.outputSlot.clear();
+			}
 		}
 		return count > 0;
 	}
@@ -379,14 +408,14 @@ public class ContainerBetterAnvil extends Container {
 		listener.sendWindowProperty(this, 0, this.xpCost);
 	}
 
-	@SideOnly(Side.CLIENT)
-	public void updateProgressBar(int id, int data)
-	{
-		if (id == 0)
-		{
-			this.xpCost = data;
-		}
-	}
+//	@SideOnly(Side.CLIENT)
+//	public void updateProgressBar(int id, int data)
+//	{
+//		if (id == 0)
+//		{
+//			this.xpCost = data;
+//		}
+//	}
 
 	/**
 	 * Called when the container is closed.
@@ -408,7 +437,7 @@ public class ContainerBetterAnvil extends Container {
 
 	/**
 	 * Handle when the stack in slot {@code index} is shift-clicked. Normally this moves the stack between the player
-	 * inventory and the other inventory(s).
+	 * inputSlots and the other inputSlots(s).
 	 */
 	public ItemStack transferStackInSlot(EntityPlayer playerIn, int index)
 	{
@@ -466,7 +495,7 @@ public class ContainerBetterAnvil extends Container {
 	 */
 	public void updateItemName(String newName)
 	{
-		this.anvil.setItemName(newName);
+		this.anvil.setItemNameInput(newName);
 
 		if (this.getSlot(2).getHasStack())
 		{
@@ -483,9 +512,5 @@ public class ContainerBetterAnvil extends Container {
 		}
 
 		this.updateRepairOutput();
-	}
-
-	@SubscribeEvent
-	public void onPlayerPickupXP(FMLNetworkEvent.ClientConnectedToServerEvent e) {
 	}
 }

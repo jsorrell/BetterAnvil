@@ -12,21 +12,21 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TileBetterAnvil extends TileEntity {
-	private ItemStackHandler inventory = new ItemStackHandler(3);
-	private String itemName = "";
+	private ItemStackHandler inventory = new ItemStackHandler(2);
+	private String itemNameInput = "";
 	public ContainerBetterAnvil container;
 
 	@Override
 	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
 		compound.setTag("inventory", inventory.serializeNBT());
-		compound.setTag("itemName", new NBTTagString(itemName));
+		compound.setTag("itemNameInput", new NBTTagString(itemNameInput));
 		return super.writeToNBT(compound);
 	}
 
 	@Override
 	public void readFromNBT(NBTTagCompound compound) {
 		inventory.deserializeNBT(compound.getCompoundTag("inventory"));
-		itemName = compound.getString("itemName");
+		itemNameInput = compound.getString("itemNameInput");
 		super.readFromNBT(compound);
 	}
 
@@ -41,12 +41,17 @@ public class TileBetterAnvil extends TileEntity {
 		return capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY ? (T)inventory : super.getCapability(capability, facing);
 	}
 
-	public String getItemName() {
-		return itemName;
+	public String getItemNameInput() {
+		return itemNameInput;
 	}
 
-	public void setItemName(String itemName) {
-		this.itemName = itemName;
+	public void setItemNameInput(String itemNameInput) {
+		this.itemNameInput = itemNameInput;
 		this.markDirty();
+	}
+
+	@Override
+	public NBTTagCompound getUpdateTag() {
+		return writeToNBT(super.getUpdateTag());
 	}
 }

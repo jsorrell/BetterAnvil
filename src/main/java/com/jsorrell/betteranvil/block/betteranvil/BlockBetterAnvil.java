@@ -28,6 +28,12 @@ public class BlockBetterAnvil<TE extends TileEntity> extends BlockTileEntityBase
 		setResistance(2000.0F);
 	}
 
+	@Nullable
+	@Override
+	public TileEntity createNewTileEntity(World worldIn, int meta) {
+		return new TileBetterAnvil();
+	}
+
 	@Override
 	public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
 		if (!world.isRemote) {
@@ -58,6 +64,7 @@ public class BlockBetterAnvil<TE extends TileEntity> extends BlockTileEntityBase
 		}
 
 		super.breakBlock(world, pos, state);
+		world.removeTileEntity(pos);
 	}
 
 	public Class<TileBetterAnvil> getTileEntityClass() {
