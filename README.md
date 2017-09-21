@@ -7,9 +7,11 @@ A small mod providing an improved anvil.
 * Forge Modloader
 
 ### Current Features:
-*In Development*
+* Doesn't break over time for late-game set-and-forget convenience
+* Doesn't drop items when inventory is closed
+* Uses amount of XP required rather than merely subtracting from current XP level
 
 ### Planned Features:
-* Doesn't break over time for late-game set-and-forget convenience
-* Doesn't drop items when inventory is left
-* Uses amount of XP required rather than merely subtracting from current XP level
+* New texture
+
+![Crafting Recipe](recipe.png?raw=true "Crafting Recipe")
