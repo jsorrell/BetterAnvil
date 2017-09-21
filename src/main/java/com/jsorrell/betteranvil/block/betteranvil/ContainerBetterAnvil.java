@@ -101,8 +101,7 @@ public class ContainerBetterAnvil extends Container {
 			{
 				if (!thePlayer.capabilities.isCreativeMode)
 				{
-					//Fixme: Vanilla experience calculation
-					thePlayer.addExperienceLevel(-ContainerBetterAnvil.this.xpCost);
+					subtractExperience(calculateExperienceRequired(ContainerBetterAnvil.this.xpCost));
 				}
 
 				clearInventorySlot(0);
@@ -408,15 +407,6 @@ public class ContainerBetterAnvil extends Container {
 		listener.sendWindowProperty(this, 0, this.xpCost);
 	}
 
-//	@SideOnly(Side.CLIENT)
-//	public void updateProgressBar(int id, int data)
-//	{
-//		if (id == 0)
-//		{
-//			this.xpCost = data;
-//		}
-//	}
-
 	/**
 	 * Called when the container is closed.
 	 */
@@ -460,7 +450,7 @@ public class ContainerBetterAnvil extends Container {
 			}
 			else if (index != 0 && index != 1)
 			{
-				if (index >= 3 && index < 39 && !this.mergeItemStack(itemstack0, 0, 2, false))
+				if (index < 39 && !this.mergeItemStack(itemstack0, 0, 2, false))
 				{
 					return ItemStack.EMPTY;
 				}
@@ -512,5 +502,66 @@ public class ContainerBetterAnvil extends Container {
 		}
 
 		this.updateRepairOutput();
+	}
+
+	/**
+	 * Works same as player.xpBarCap without needing a player
+	 * @param l The level of the player
+	 * @return The amount of xp that will fill the xp bar
+	 */
+	private int xpBarCap(int l) {
+		if (l >= 30)
+		{
+			return 112 + (l - 30) * 9;
+		}
+		else
+		{
+			return l >= 15 ? 37 + (l - 15) * 5 : 7 + l * 2;
+		}
+	}
+
+	/**
+	 * Calculates experience required to get from Exp Lv 0 to Exp Lv l
+	 */
+	private long calculateExperienceRequired(int l) {
+		int i, exp = 0;
+		for (i = 0; i < l; i++) {
+			exp += xpBarCap(i);
+		}
+		return exp;
+	}
+
+	/**
+	 * Subtracts from the total experience of this.player
+	 * @param exp The amount of xp to remove to the player
+	 */
+	private void subtractExperience(long exp) {
+		if (exp >= player.experienceTotal) {
+			System.out.println("a " + exp);
+			player.experienceLevel = 0;
+			player.experience = 0.0F;
+			player.experienceTotal = 0;
+		} else if (exp <= player.experience * player.xpBarCap()) {
+			System.out.println("b " + exp);
+			player.experienceTotal -= exp;
+			player.experience -= (float)exp / (float)player.xpBarCap();
+		} else if (player.experience == 0.0F) {
+			int barCap = xpBarCap(--player.experienceLevel);
+			if (barCap >= exp) {
+				System.out.println("c " + exp);
+				player.experience = 1.0F - (float)exp / (float)barCap;
+				player.experienceTotal -= exp;
+			} else {
+				System.out.println("d " + exp);
+				player.experienceTotal -= barCap;
+				subtractExperience(exp - barCap);
+			}
+		} else {
+			System.out.println("e " + exp);
+			long curExp = (long)(player.experience * player.xpBarCap());
+			player.experienceTotal -= curExp;
+			player.experience = 0.0F;
+			subtractExperience(exp - curExp);
+		}
 	}
 }
