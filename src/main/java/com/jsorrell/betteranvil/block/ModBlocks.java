@@ -9,7 +9,7 @@ import net.minecraftforge.registries.IForgeRegistry;
 
 public class ModBlocks {
 
-	public static BlockBetterAnvil<TileBetterAnvil> anvil = new BlockBetterAnvil("betteranvil");
+	public static BlockBetterAnvil<TileBetterAnvil> anvil = new BlockBetterAnvil();
 
 	public static void registerBlocks(IForgeRegistry<Block> registry) {
 		registry.registerAll(

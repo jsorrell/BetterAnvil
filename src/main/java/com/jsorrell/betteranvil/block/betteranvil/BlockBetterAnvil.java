@@ -21,8 +21,8 @@ import net.minecraftforge.items.IItemHandler;
 import javax.annotation.Nullable;
 
 public class BlockBetterAnvil<TE extends TileEntity> extends BlockTileEntityBase {
-	public BlockBetterAnvil(String name) {
-		super(Material.ANVIL, name);
+	public BlockBetterAnvil() {
+		super(Material.ANVIL, "betteranvil");
 		setCreativeTab(CreativeTabs.MISC);
 		setHardness(5.0F);
 		setResistance(2000.0F);

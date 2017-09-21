@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " M ",
+    "MAM",
+    " S "
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:magma"
+    },
+    "A": {
+      "item": "minecraft:anvil",
+      "data": 0
+    },
+    "S": {
+      "item": "minecraft:nether_star"
+    }
+  },
+  "result": {
+    "item": "betteranvil"
+  }
+}
