@@ -522,6 +522,8 @@ public class ContainerBetterAnvil extends Container {
 
 	/**
 	 * Calculates experience required to get from Exp Lv 0 to Exp Lv l
+	 * @param l Level
+	 * @return Experience
 	 */
 	private long calculateExperienceRequired(int l) {
 		int i, exp = 0;
@@ -537,27 +539,22 @@ public class ContainerBetterAnvil extends Container {
 	 */
 	private void subtractExperience(long exp) {
 		if (exp >= player.experienceTotal) {
-			System.out.println("a " + exp);
 			player.experienceLevel = 0;
 			player.experience = 0.0F;
 			player.experienceTotal = 0;
 		} else if (exp <= player.experience * player.xpBarCap()) {
-			System.out.println("b " + exp);
 			player.experienceTotal -= exp;
 			player.experience -= (float)exp / (float)player.xpBarCap();
 		} else if (player.experience == 0.0F) {
 			int barCap = xpBarCap(--player.experienceLevel);
 			if (barCap >= exp) {
-				System.out.println("c " + exp);
 				player.experience = 1.0F - (float)exp / (float)barCap;
 				player.experienceTotal -= exp;
 			} else {
-				System.out.println("d " + exp);
 				player.experienceTotal -= barCap;
 				subtractExperience(exp - barCap);
 			}
 		} else {
-			System.out.println("e " + exp);
 			long curExp = (long)(player.experience * player.xpBarCap());
 			player.experienceTotal -= curExp;
 			player.experience = 0.0F;
